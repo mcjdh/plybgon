@@ -1,8 +1,14 @@
 export function checkCollision(obj1, obj2) {
-    return obj1.x - obj1.width / 2 < obj2.x + obj2.width / 2 &&
-           obj1.x + obj1.width / 2 > obj2.x - obj2.width / 2 &&
-           obj1.y - obj1.height / 2 < obj2.y + obj2.height / 2 &&
-           obj1.y + obj1.height / 2 > obj2.y - obj2.height / 2;
+    const t1 = obj1.getComponent?.('TransformComponent') || obj1;
+    const t2 = obj2.getComponent?.('TransformComponent') || obj2;
+
+    const x1 = t1.x, y1 = t1.y, w1 = t1.width, h1 = t1.height;
+    const x2 = t2.x, y2 = t2.y, w2 = t2.width, h2 = t2.height;
+
+    return x1 - w1 / 2 < x2 + w2 / 2 &&
+           x1 + w1 / 2 > x2 - w2 / 2 &&
+           y1 - h1 / 2 < y2 + h2 / 2 &&
+           y1 + h1 / 2 > y2 - h2 / 2;
 }
 
 export function clamp(value, min, max) {

@@ -6,13 +6,12 @@ import { EnemyMovementComponent } from '../components/EnemyMovementComponent.js'
 
 export class Enemy extends Entity {
     constructor(x, y, type = 0) {
-        super(x, y, CONFIG.ENEMY_WIDTH, CONFIG.ENEMY_HEIGHT);
+        super();
 
         this.type = type;
         this.points = CONFIG.POINTS[`ENEMY_TYPE_${type + 1}`] || 10;
         this.speedMultiplier = 1.0;
 
-        // Add components
         this.addComponent(new TransformComponent(
             this,
             x,

@@ -8,9 +8,8 @@ import { AnimationComponent } from '../components/AnimationComponent.js';
 
 export class Player extends Entity {
     constructor(x, y) {
-        super(x, y, CONFIG.PLAYER_WIDTH, CONFIG.PLAYER_HEIGHT);
+        super();
 
-        // Add components
         this.addComponent(new TransformComponent(
             this,
             x,

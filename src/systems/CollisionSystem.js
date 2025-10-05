@@ -43,8 +43,13 @@ export class CollisionSystem {
         for (const enemy of enemies) {
             if (!enemy.active) continue;
 
-            if (!enemyReachedPlayer && enemy.y + enemy.height / 2 >= player.y - player.height / 2) {
-                enemyReachedPlayer = true;
+            const enemyTransform = enemy.getComponent('TransformComponent');
+            const playerTransform = player.getComponent('TransformComponent');
+
+            if (!enemyReachedPlayer && enemyTransform && playerTransform) {
+                if (enemyTransform.y + enemyTransform.height / 2 >= playerTransform.y - playerTransform.height / 2) {
+                    enemyReachedPlayer = true;
+                }
             }
         }
 

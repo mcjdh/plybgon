@@ -5,11 +5,10 @@ import { SpriteComponent } from '../components/SpriteComponent.js';
 
 export class Bullet extends Entity {
     constructor(x = 0, y = 0, direction = -1) {
-        super(x, y, CONFIG.BULLET_WIDTH, CONFIG.BULLET_HEIGHT);
+        super();
 
         this.direction = direction;
 
-        // Add components
         const transform = new TransformComponent(
             this,
             x,
