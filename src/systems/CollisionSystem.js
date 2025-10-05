@@ -2,9 +2,10 @@ import { checkCollision } from '../utils/helpers.js';
 import { SpatialGrid } from '../utils/SpatialGrid.js';
 import { CONFIG } from '../config/constants.js';
 
-// Handles all collision detection and resolution with spatial partitioning
+// Handles all collision detection with spatial partitioning and Entity Manager
 export class CollisionSystem {
-    constructor() {
+    constructor(entityManager) {
+        this.entityManager = entityManager;
         this.onEnemyHit = null; // Callback when enemy is hit
         this.onPlayerHit = null; // Callback when player is hit
 
@@ -17,26 +18,29 @@ export class CollisionSystem {
     }
 
     /**
-     * Run all collision checks with spatial partitioning optimization
-     * @param {Object} gameState - Current game state
+     * Run all collision checks with spatial partitioning (Entity Manager based)
      * @returns {Object} - Collision results {scoreGained, playerHit, enemyReachedPlayer}
      */
-    checkAllCollisions(gameState) {
+    checkAllCollisions() {
         let scoreGained = 0;
         let playerHit = false;
         let enemyReachedPlayer = false;
 
-        const { bullets, enemyBullets, enemies, player } = gameState;
+        // Get entities from manager
+        const player = this.entityManager.getPlayer();
+        if (!player) return { scoreGained, playerHit, enemyReachedPlayer };
+
+        const bullets = this.entityManager.getByType(this.entityManager.entityTypes.BULLET);
+        const enemyBullets = this.entityManager.getByType(this.entityManager.entityTypes.ENEMY_BULLET);
+        const enemies = this.entityManager.getByType(this.entityManager.entityTypes.ENEMY);
 
         // Clear and populate spatial grid
         this.spatialGrid.clear();
-        enemies.forEach(e => e.active && this.spatialGrid.insert(e));
-        bullets.forEach(b => b.active && this.spatialGrid.insert(b));
-        enemyBullets.forEach(b => b.active && this.spatialGrid.insert(b));
+        enemies.forEach(e => this.spatialGrid.insert(e));
+        bullets.forEach(b => this.spatialGrid.insert(b));
 
         // Check player bullets vs enemies (with spatial optimization)
-        for (let i = bullets.length - 1; i >= 0; i--) {
-            const bullet = bullets[i];
+        for (const bullet of bullets) {
             if (!bullet.active) continue;
 
             // Only check nearby enemies (spatial partitioning!)
@@ -68,10 +72,9 @@ export class CollisionSystem {
             }
         }
 
-        // Check enemy bullets vs player (spatial optimization)
+        // Check enemy bullets vs player
         if (!playerHit) {
-            for (let i = enemyBullets.length - 1; i >= 0; i--) {
-                const bullet = enemyBullets[i];
+            for (const bullet of enemyBullets) {
                 if (!bullet.active) continue;
 
                 if (checkCollision(bullet, player)) {

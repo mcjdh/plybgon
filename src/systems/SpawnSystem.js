@@ -3,52 +3,52 @@ import { CONFIG } from '../config/constants.js';
 import { randomElement } from '../utils/helpers.js';
 import { ObjectPool } from '../utils/ObjectPool.js';
 
-// Handles spawning of bullets and enemies
+// Handles spawning of bullets and enemies with Entity Manager integration
 export class SpawnSystem {
-    constructor() {
+    constructor(entityManager) {
+        this.entityManager = entityManager;
         this.enemyFireTimer = 0; // Delta-time based timer
 
         // Object pools for performance
-        this.bulletPool = new ObjectPool(() => new Bullet(), 100);
+        this.bulletPool = new ObjectPool(() => new Bullet(), CONFIG.BULLET_POOL_SIZE);
     }
 
     /**
-     * Spawn a player bullet (from pool)
+     * Try to spawn a player bullet (from pool), add to entity manager if successful
      * @param {Object} player - Player object
-     * @returns {Bullet|null} - Pooled bullet or null if can't shoot
+     * @param {number} deltaTime - Time delta (optional, for future use)
+     * @returns {boolean} - True if bullet was spawned
      */
-    spawnPlayerBullet(player) {
+    trySpawnPlayerBullet(player, deltaTime) {
         if (player.canShoot()) {
             const pos = player.getBulletSpawnPosition();
             const bullet = this.bulletPool.acquire();
             bullet.init(pos.x, pos.y, -1);
-            return bullet;
+            this.entityManager.add(bullet, this.entityManager.entityTypes.BULLET);
+            return true;
         }
-        return null;
+        return false;
     }
 
     /**
      * Spawn enemy bullets (delta-time based, from pool)
-     * @param {Array} enemies - Array of enemies
      * @param {number} deltaTime - Time since last frame in seconds
-     * @returns {Array} - Array of pooled bullets
      */
-    spawnEnemyBullets(enemies, deltaTime) {
-        const bullets = [];
+    spawnEnemyBullets(deltaTime) {
         this.enemyFireTimer += deltaTime * 1000; // Convert to ms
 
+        const enemies = this.entityManager.getByType(this.entityManager.entityTypes.ENEMY);
+
         if (enemies.length > 0 && this.enemyFireTimer >= CONFIG.ENEMY_FIRE_RATE) {
-            const shooter = randomElement(enemies.filter(e => e.active));
+            const shooter = randomElement(enemies);
             if (shooter) {
                 const pos = shooter.getBulletSpawnPosition();
                 const bullet = this.bulletPool.acquire();
                 bullet.init(pos.x, pos.y, 1);
-                bullets.push(bullet);
+                this.entityManager.add(bullet, this.entityManager.entityTypes.ENEMY_BULLET);
                 this.enemyFireTimer = 0;
             }
         }
-
-        return bullets;
     }
 
     /**
@@ -68,4 +68,3 @@ export class SpawnSystem {
         this.bulletPool.clear();
     }
 }
-

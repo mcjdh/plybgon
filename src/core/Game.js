@@ -7,8 +7,9 @@ import { SpawnSystem } from '../systems/SpawnSystem.js';
 import { ScoreSystem } from '../systems/ScoreSystem.js';
 import { LevelManager } from '../levels/levelManager.js';
 import { SoundManager } from '../utils/SoundManager.js';
+import { EntityManager } from '../systems/EntityManager.js';
 
-// Main Game class - orchestrates everything
+// Main Game class - orchestrates everything with centralized entity management
 export class Game {
     constructor(canvas) {
         this.canvas = canvas;
@@ -16,18 +17,15 @@ export class Game {
         // Core systems
         this.renderer = new Renderer(canvas);
         this.inputManager = new InputManager(canvas);
-        this.collisionSystem = new CollisionSystem();
-        this.spawnSystem = new SpawnSystem();
+        this.entityManager = new EntityManager(); // Centralized entity management
+        this.collisionSystem = new CollisionSystem(this.entityManager);
+        this.spawnSystem = new SpawnSystem(this.entityManager);
         this.scoreSystem = new ScoreSystem();
         this.levelManager = new LevelManager();
         this.soundManager = new SoundManager();
 
         // Game state
         this.state = GAME_STATES.PLAYING;
-        this.player = null;
-        this.bullets = [];
-        this.enemies = [];
-        this.enemyBullets = [];
 
         // Timing
         this.lastFrameTime = 0;
@@ -54,14 +52,21 @@ export class Game {
     }
 
     init() {
-        // Create player
-        this.player = new Player(
+        // Create player and add to entity manager
+        const player = new Player(
             CONFIG.CANVAS_WIDTH / 2,
             CONFIG.CANVAS_HEIGHT - 50
         );
+        this.entityManager.add(player, this.entityManager.entityTypes.PLAYER);
 
         // Spawn first wave
-        this.enemies = this.levelManager.spawnEnemies();
+        const enemies = this.levelManager.spawnEnemies();
+        enemies.forEach(enemy =>
+            this.entityManager.add(enemy, this.entityManager.entityTypes.ENEMY)
+        );
+
+        // Process additions
+        this.entityManager.processPendingAdditions();
 
         // Start game loop
         this.lastFrameTime = performance.now();
@@ -81,35 +86,34 @@ export class Game {
     update(deltaTime) {
         if (this.state !== GAME_STATES.PLAYING) return;
 
-        // Update player
-        this.player.update(deltaTime, this.inputManager);
+        const player = this.entityManager.getPlayer();
+        if (!player) return;
 
         // Auto-fire
-        const newBullet = this.spawnSystem.spawnPlayerBullet(this.player);
-        if (newBullet) {
-            this.bullets.push(newBullet);
+        if (this.spawnSystem.trySpawnPlayerBullet(player, deltaTime)) {
             this.soundManager.play('shoot');
         }
 
-        // Update all bullets and enemies in unified loops
-        this.updateEntities([
-            ...this.bullets,
-            ...this.enemyBullets
-        ], deltaTime);
-
-        this.levelManager.updateEnemies(this.enemies, deltaTime);
-
         // Spawn enemy bullets
-        const newEnemyBullets = this.spawnSystem.spawnEnemyBullets(this.enemies, deltaTime);
-        this.enemyBullets.push(...newEnemyBullets);
+        this.spawnSystem.spawnEnemyBullets(deltaTime);
 
-        // Check collisions in single optimized pass
-        const collisionResults = this.collisionSystem.checkAllCollisions({
-            bullets: this.bullets,
-            enemies: this.enemies,
-            enemyBullets: this.enemyBullets,
-            player: this.player
+        // Update all entities (unified system)
+        this.entityManager.update(deltaTime, {
+            inputManager: this.inputManager,
+            enemyDirection: this.levelManager.enemyDirection,
+            canvasWidth: CONFIG.CANVAS_WIDTH,
+            canvasHeight: CONFIG.CANVAS_HEIGHT
         });
+
+        // Update enemy group movement
+        const enemies = this.entityManager.getByType(this.entityManager.entityTypes.ENEMY);
+        this.levelManager.updateEnemies(enemies, deltaTime);
+
+        // Process pending additions
+        this.entityManager.processPendingAdditions();
+
+        // Check collisions (EntityManager-based)
+        const collisionResults = this.collisionSystem.checkAllCollisions();
 
         // Handle collision results
         if (collisionResults.scoreGained > 0) {
@@ -118,63 +122,39 @@ export class Game {
         }
 
         if (collisionResults.playerHit || collisionResults.enemyReachedPlayer) {
-            this.player.explode();
+            player.explode();
             this.scoreSystem.loseLife();
             this.soundManager.play('playerHit');
         }
 
-        // Clean up inactive entities in single pass
-        this.cleanupInactiveEntities();
+        // Clean up inactive entities
+        this.entityManager.cleanup((bullets) => {
+            this.spawnSystem.releaseBullets(bullets);
+        });
 
         // Check if wave is cleared
-        if (this.enemies.length === 0) {
+        if (this.entityManager.countByType(this.entityManager.entityTypes.ENEMY) === 0) {
             this.soundManager.play('levelComplete');
             this.nextWave();
         }
     }
 
-    /**
-     * Update all entities in a single loop
-     * @param {Array} entities - Array of entities to update
-     * @param {number} deltaTime - Time delta
-     */
-    updateEntities(entities, deltaTime) {
-        for (const entity of entities) {
-            if (!entity.active) continue;
-
-            entity.update(deltaTime);
-            if (entity.isOffScreen && entity.isOffScreen(CONFIG.CANVAS_WIDTH, CONFIG.CANVAS_HEIGHT)) {
-                entity.destroy();
-            }
-        }
-    }
-
-    /**
-     * Clean up all inactive entities and return bullets to pool
-     */
-    cleanupInactiveEntities() {
-        // Return bullets to pool first
-        this.spawnSystem.releaseBullets(this.bullets);
-        this.spawnSystem.releaseBullets(this.enemyBullets);
-
-        // Filter out inactive entities
-        this.bullets = this.bullets.filter(b => b.active);
-        this.enemies = this.enemies.filter(e => e.active);
-        this.enemyBullets = this.enemyBullets.filter(b => b.active);
-    }
-
     nextWave() {
         this.levelManager.nextLevel();
-        this.enemies = this.levelManager.spawnEnemies();
+        const enemies = this.levelManager.spawnEnemies();
+        enemies.forEach(enemy =>
+            this.entityManager.add(enemy, this.entityManager.entityTypes.ENEMY)
+        );
+        this.entityManager.processPendingAdditions();
     }
 
     render() {
         const gameState = {
             state: this.state,
-            player: this.player,
-            bullets: this.bullets,
-            enemies: this.enemies,
-            enemyBullets: this.enemyBullets,
+            player: this.entityManager.getPlayer(),
+            bullets: this.entityManager.getByType(this.entityManager.entityTypes.BULLET),
+            enemies: this.entityManager.getByType(this.entityManager.entityTypes.ENEMY),
+            enemyBullets: this.entityManager.getByType(this.entityManager.entityTypes.ENEMY_BULLET),
             score: this.scoreSystem.score,
             lives: this.scoreSystem.lives
         };
@@ -194,18 +174,24 @@ export class Game {
         this.spawnSystem.reset();
         this.levelManager.reset();
 
-        // Clear entities
-        this.bullets = [];
-        this.enemyBullets = [];
+        // Clear entity manager
+        this.entityManager.clear();
 
         // Recreate player
-        this.player = new Player(
+        const player = new Player(
             CONFIG.CANVAS_WIDTH / 2,
             CONFIG.CANVAS_HEIGHT - 50
         );
+        this.entityManager.add(player, this.entityManager.entityTypes.PLAYER);
 
         // Spawn enemies
-        this.enemies = this.levelManager.spawnEnemies();
+        const enemies = this.levelManager.spawnEnemies();
+        enemies.forEach(enemy =>
+            this.entityManager.add(enemy, this.entityManager.entityTypes.ENEMY)
+        );
+
+        // Process additions
+        this.entityManager.processPendingAdditions();
 
         // Hide game over screen
         this.renderer.hideGameOver();
