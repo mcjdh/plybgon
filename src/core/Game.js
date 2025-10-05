@@ -6,6 +6,7 @@ import { CollisionSystem } from '../systems/CollisionSystem.js';
 import { SpawnSystem } from '../systems/SpawnSystem.js';
 import { ScoreSystem } from '../systems/ScoreSystem.js';
 import { LevelManager } from '../levels/levelManager.js';
+import { SoundManager } from '../utils/SoundManager.js';
 
 // Main Game class - orchestrates everything
 export class Game {
@@ -19,6 +20,7 @@ export class Game {
         this.spawnSystem = new SpawnSystem();
         this.scoreSystem = new ScoreSystem();
         this.levelManager = new LevelManager();
+        this.soundManager = new SoundManager();
 
         // Game state
         this.state = GAME_STATES.PLAYING;
@@ -86,6 +88,7 @@ export class Game {
         const newBullet = this.spawnSystem.spawnPlayerBullet(this.player);
         if (newBullet) {
             this.bullets.push(newBullet);
+            this.soundManager.play('shoot');
         }
 
         // Update all bullets and enemies in unified loops
@@ -111,11 +114,13 @@ export class Game {
         // Handle collision results
         if (collisionResults.scoreGained > 0) {
             this.scoreSystem.addScore(collisionResults.scoreGained);
+            this.soundManager.play('enemyHit');
         }
 
         if (collisionResults.playerHit || collisionResults.enemyReachedPlayer) {
             this.player.explode();
             this.scoreSystem.loseLife();
+            this.soundManager.play('playerHit');
         }
 
         // Clean up inactive entities in single pass
@@ -123,6 +128,7 @@ export class Game {
 
         // Check if wave is cleared
         if (this.enemies.length === 0) {
+            this.soundManager.play('levelComplete');
             this.nextWave();
         }
     }

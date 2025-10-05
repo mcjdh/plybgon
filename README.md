@@ -5,14 +5,16 @@ A modern, modular space shooter game inspired by classic arcade games like Galag
 ## Features
 
 - 🎮 Auto-fire gameplay - just focus on dodging!
-- 📱 Mobile-friendly with touch controls
+- 📱 Mobile-friendly with optimized touch controls
 - ⌨️ Desktop controls with keyboard
-- 🌊 Multiple wave patterns (Classic, V-Formation, Diamond)
+- 🌊 **5 unique wave patterns** (Grid, V, Diamond, Chevron, Circle)
 - 🎯 Progressive difficulty (15% faster each loop)
 - 💯 Score and lives system
 - 🎨 Animated enemies and explosion effects
+- 🔊 **Retro sound effects** (procedurally generated, no audio files!)
 - ⚡ Optimized with object pooling for smooth 60 FPS
 - 🖥️ High-DPI display support
+- 📊 **Data-driven level design** (easy to add new formations)
 
 ## Controls
 
@@ -48,13 +50,12 @@ galagon-geometry-space-type-game/
 │   │   └── ScoreSystem.js      # Score management
 │   ├── levels/
 │   │   ├── Level.js       # Base level class
-│   │   ├── level1.js      # Classic formation
-│   │   ├── level2.js      # V formation
-│   │   ├── level3.js      # Diamond formation
+│   │   ├── levelData.js   # Data-driven level definitions
 │   │   └── levelManager.js # Level progression
 │   └── utils/
 │       ├── helpers.js     # Utility functions
-│       └── ObjectPool.js  # Object pooling for performance
+│       ├── ObjectPool.js  # Object pooling for performance
+│       └── SoundManager.js # Procedural sound effects
 ```
 
 ## How to Play
@@ -67,42 +68,49 @@ galagon-geometry-space-type-game/
 
 ## Adding New Content
 
-### Create a New Enemy Type
+### Create a New Level (Easy! Just add data)
 
-Edit `src/config/constants.js`:
+Edit `src/levels/levelData.js` and add a new entry:
 ```javascript
-COLORS: {
-    ENEMY_TYPE_4: '#0ff',  // Add new color
+{
+    name: 'Wave 6 - Spiral',
+    difficulty: 6,
+    pattern: 'circle', // or create new pattern
+    config: {
+        centerX: 200,
+        centerY: 100,
+        radius: 100,
+        count: 20,
+        typePattern: 'mixed'
+    }
 }
+```
 
-POINTS: {
-    ENEMY_TYPE_4: 40  // Add point value
+That's it! No code needed - just data. The level system handles the rest.
+
+### Create a Custom Pattern
+
+Add a new generator function in `levelData.js`:
+```javascript
+function generateSpiral(config) {
+    const enemies = [];
+    const { centerX, centerY, count } = config;
+
+    for (let i = 0; i < count; i++) {
+        const angle = (i / count) * Math.PI * 4; // 2 rotations
+        const radius = 50 + (i / count) * 80;
+        enemies.push({
+            x: centerX + Math.cos(angle) * radius,
+            y: centerY + Math.sin(angle) * radius,
+            type: i % 3
+        });
+    }
+
+    return enemies;
 }
 ```
 
-### Create a New Level
-
-Create `src/levels/level4.js`:
-```javascript
-import { Level } from './Level.js';
-
-export const level4 = new Level({
-    name: 'Wave 4',
-    difficulty: 4,
-    enemies: [
-        { x: 100, y: 50, type: 2 },
-        { x: 200, y: 50, type: 2 },
-        // ... add more enemies
-    ]
-});
-```
-
-Then add to `src/levels/levelManager.js`:
-```javascript
-import { level4 } from './level4.js';
-
-this.levels = [level1, level2, level3, level4];
-```
+Then use `pattern: 'spiral'` in your level data.
 
 ### Modify Game Settings
 

@@ -43,7 +43,28 @@ export const CONFIG = {
         ENEMY_TYPE_1: 10,
         ENEMY_TYPE_2: 20,
         ENEMY_TYPE_3: 30
-    }
+    },
+
+    // Level progression
+    DIFFICULTY_INCREASE_PER_LOOP: 0.15, // 15% faster each loop
+
+    // Animation
+    ENEMY_ANIMATION_SPEED: 300, // ms per frame
+    EXPLOSION_DURATION: 500, // ms
+
+    // Object pooling
+    BULLET_POOL_SIZE: 100,
+
+    // Sound
+    SOUND_VOLUME: 0.3,
+
+    // Touch/Mobile
+    TOUCH_SMOOTHING: 0.1, // Lower = more responsive, higher = smoother
+    TOUCH_DEAD_ZONE: 5, // pixels - ignore small movements
+
+    // Level boundaries
+    LEVEL_SAFE_X_MIN: 40,
+    LEVEL_SAFE_X_MAX: 360
 };
 
 export const GAME_STATES = {

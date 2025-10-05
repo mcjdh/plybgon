@@ -1,12 +1,12 @@
-import { level1 } from './level1.js';
-import { level2 } from './level2.js';
-import { level3 } from './level3.js';
+import { LEVEL_DATA } from './levelData.js';
+import { Level } from './Level.js';
 import { Enemy } from '../entities/Enemy.js';
 
 // Manages level progression and enemy spawning
 export class LevelManager {
     constructor() {
-        this.levels = [level1, level2, level3];
+        // Create Level objects from data
+        this.levels = LEVEL_DATA.map(data => new Level(data));
         this.currentLevelIndex = 0;
         this.enemyDirection = 1;
         this.difficultyMultiplier = 1.0; // Increases each wave
