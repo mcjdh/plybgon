@@ -1,36 +1,97 @@
-// Base Entity class - all game objects inherit from this
+// Base Entity class - Component-based architecture
 export class Entity {
     constructor(x, y, width, height) {
+        // Legacy properties for backward compatibility
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
         this.active = true;
+
+        // Component system
+        this.components = new Map();
     }
 
     /**
-     * Update entity state - override in subclasses
-     * @param {number} deltaTime - Time since last frame
+     * Add a component to this entity
+     * @param {Component} component - Component instance
      */
-    update(deltaTime) {
-        // Override in subclasses
+    addComponent(component) {
+        const componentName = component.constructor.name;
+        this.components.set(componentName, component);
+        component.init();
+        return this;
     }
 
     /**
-     * Draw entity - override in subclasses
+     * Get a component by name
+     * @param {string} componentName - Name of component class
+     */
+    getComponent(componentName) {
+        return this.components.get(componentName);
+    }
+
+    /**
+     * Check if entity has a component
+     */
+    hasComponent(componentName) {
+        return this.components.has(componentName);
+    }
+
+    /**
+     * Remove a component
+     */
+    removeComponent(componentName) {
+        const component = this.components.get(componentName);
+        if (component) {
+            component.destroy();
+            this.components.delete(componentName);
+        }
+    }
+
+    /**
+     * Update entity - calls update on all components
+     * @param {number} deltaTime - Time since last frame
+     * @param {Object} context - Game context
+     */
+    update(deltaTime, context = {}) {
+        for (const component of this.components.values()) {
+            if (component.enabled) {
+                component.update(deltaTime, context);
+            }
+        }
+
+        // Update legacy properties from TransformComponent if present
+        const transform = this.getComponent('TransformComponent');
+        if (transform) {
+            this.x = transform.x;
+            this.y = transform.y;
+            this.width = transform.width;
+            this.height = transform.height;
+        }
+    }
+
+    /**
+     * Draw entity - calls render on SpriteComponent
      * @param {CanvasRenderingContext2D} ctx - Canvas context
      */
     draw(ctx) {
-        // Override in subclasses
+        const sprite = this.getComponent('SpriteComponent');
+        if (sprite) {
+            sprite.render(ctx);
+        }
     }
 
     /**
-     * Check if entity is off screen
-     * @param {number} canvasWidth - Canvas width
-     * @param {number} canvasHeight - Canvas height
-     * @returns {boolean}
+     * Check if entity is off screen (uses TransformComponent or legacy)
      */
     isOffScreen(canvasWidth, canvasHeight) {
+        const transform = this.getComponent('TransformComponent');
+        if (transform) {
+            return transform.isOffScreen(canvasWidth, canvasHeight);
+        }
+
+        // Fallback to legacy
         return this.x + this.width / 2 < 0 ||
                this.x - this.width / 2 > canvasWidth ||
                this.y + this.height / 2 < 0 ||
@@ -38,9 +99,12 @@ export class Entity {
     }
 
     /**
-     * Destroy this entity
+     * Destroy this entity and all components
      */
     destroy() {
+        for (const component of this.components.values()) {
+            component.destroy();
+        }
         this.active = false;
     }
 }

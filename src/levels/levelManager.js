@@ -42,24 +42,26 @@ export class LevelManager {
 
         return formation.map(config => {
             const enemy = new Enemy(config.x, config.y, config.type);
-            // Apply difficulty multiplier to speed
-            enemy.speed *= this.difficultyMultiplier;
+
+            // Apply difficulty multiplier to speed via TransformComponent
+            const transform = enemy.getComponent('TransformComponent');
+            if (transform) {
+                // Base speed is applied through the update loop
+                // Store multiplier for later use
+                enemy.speedMultiplier = this.difficultyMultiplier;
+            }
+
             return enemy;
         });
     }
 
     /**
-     * Update all enemies
+     * Update enemy group behavior (direction changes, etc.)
+     * Movement is handled by EnemyMovementComponent
      * @param {Array} enemies - Array of enemies
      */
     updateEnemies(enemies, deltaTime) {
-        // First, move all enemies
-        enemies.forEach(enemy => {
-            if (!enemy.active) return;
-            enemy.update(deltaTime, this.enemyDirection);
-        });
-
-        // Then check if any hit the edge (after movement)
+        // Check if any enemy hit the edge
         let hitEdge = false;
         for (const enemy of enemies) {
             if (!enemy.active) continue;
@@ -69,7 +71,7 @@ export class LevelManager {
             }
         }
 
-        // If hit edge, reverse direction and move down (only once per frame)
+        // If hit edge, reverse direction and move all enemies down
         if (hitEdge) {
             this.enemyDirection *= -1;
             enemies.forEach(enemy => {
